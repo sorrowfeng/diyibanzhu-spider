@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import time
+import imgdict
 
 site_url = "http://www.bz1111.xyz"
 search_url = "http://www.bz1111.xyz/s.php"#"https://www.bz1111.xyz/home/search"
