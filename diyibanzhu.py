@@ -4,7 +4,11 @@ import os
 import re
 import sys
 import time
-import imgdict
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from imgdict import img_dict
+
 
 site_url = "http://www.bz1111.xyz"
 search_url = "http://www.bz1111.xyz/s.php"#"https://www.bz1111.xyz/home/search"
@@ -49,6 +53,9 @@ class Spider:
 
     def __init__(self, word):
         self.word = word  # 初始化参数
+        self.browser = webdriver.Edge()
+        self.browser.implicitly_wait(5)
+        self.browser.minimize_window()
 
     def start_requests(self):
         # 请求网站拿到数据，抽取小说名创建文件夹，抽取小说链接
@@ -134,7 +141,7 @@ class Spider:
         for zhang_name, zhang_url in zip(zhang_name_list, zhang_url_list):  # zip的作用
             # 请求每章的数据, 将每章的章节名与链接传入request_data函数
             self.requests_data(zhang_name, zhang_url)  # >>> x = [1, 2, 3]
-            return
+            # return
 
 
     # 请求具体的每章内容
@@ -171,16 +178,32 @@ class Spider:
                 # content = "\n".join(html.xpath('//*[@id="ad"]/text()'))  # 将"\n"作为后面返回内容的拼接
 
                 # TODO: 获取后续页无法正确获取到内容
-                content = html.xpath('//*[@id="ad"]/text()')
-                for n in content:
-                    # 取出来的是个element对象，需要给他转换成字符串
-                    string = etree.tostring(n, encoding='utf-8').decode('utf-8')     # 字符串类型
-                # 转成字符串后中文不能正常显示，需要再对其进行解析
-                # name2 = HTMLParser().unescape(name1.decode())
-                # content = name2
+                self.browser.get(every_page_url)
 
-                # content = self.removeOtherContent(content)
-                # file.write(content)  # 写入正文内容
+                myDynamicElement = self.browser.find_element(By.XPATH, '//div[@id="ad"]')
+                text = self.browser.page_source
+
+                content = re.search(r'(?<=<div id="ad">).*?(?=</div>)', text).group()
+
+                content = self.format_text(content)
+                file.write(content)  # 写入正文内容
+
+    def format_text(self, t) -> str:
+        m_text = t.replace('<br><br>', '\n')
+        m_text = m_text.replace('<br>', '')
+        m_text = m_text.replace('&nbsp;', '')
+        m_text = m_text.replace(' ', '')
+        m_text = m_text.replace('地祉发布页 ４Ｖ４Ｖ４Ｖ点ＣＯＭ', '')
+        m_text = re.sub(r'<div class=.*?>', '', m_text)
+
+        def replace_img(match) -> str:
+            key = str(match.group(0))
+            key = key.replace('<img src="/toimg/data/', '')
+            key = key.replace('.png">', '')
+            return img_dict[str(key)]
+
+        m_text = re.sub(r'<img src="/toimg/data/.*?\.png">', replace_img, m_text)
+        return m_text
 
     def removeOtherContent(self, content):
         content = content.replace(" ", "")
